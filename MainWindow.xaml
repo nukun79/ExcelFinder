@@ -1,0 +1,158 @@
+<Window x:Class="ExcelFinder.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Excel UID Finder" Height="620" Width="1000" MinHeight="500" MinWidth="820">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition x:Name="JsonListRowDefinition" Height="*"/>
+            <RowDefinition Height="6"/>
+            <RowDefinition x:Name="ResultListRowDefinition" Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Menu Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,8">
+            <MenuItem Header="설정">
+                <MenuItem Header="Perforce 정보 설정..." Click="OpenPerforceConfigMenuItem_Click"/>
+            </MenuItem>
+            <MenuItem Header="머지" Click="OpenMergeWindowMenuItem_Click"/>
+        </Menu>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="Excel Folder"/>
+        <TextBox x:Name="ExcelFolderTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,10,8" Height="28" VerticalContentAlignment="Center" TextChanged="FolderPathTextBox_TextChanged"/>
+        <Button Grid.Row="1" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,8" Click="BrowseExcelFolderButton_Click" Content="찾기..."/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="JSON Folder"/>
+        <TextBox x:Name="JsonFolderTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,10,8" Height="28" VerticalContentAlignment="Center" TextChanged="FolderPathTextBox_TextChanged"/>
+        <Button Grid.Row="2" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,8" Click="BrowseJsonFolderButton_Click" Content="찾기..."/>
+
+        <Button Grid.Row="3" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,10" Click="RefreshJsonListButton_Click" Content="새로고침"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="검색어"/>
+        <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,10,8">
+            <TextBox x:Name="UidTextBox" Height="28" VerticalContentAlignment="Center"/>
+            <CheckBox x:Name="IncludeAllContentCheckBox"
+                      Margin="0,6,0,0"
+                      Content="모든 내용 검색(off시 UID칼럼만 검색)"
+                      IsChecked="True"/>
+        </StackPanel>
+        <Button x:Name="SearchButton" Grid.Row="4" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,8" Click="SearchButton_Click" Content="검색"/>
+
+        <GroupBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Header="JSON 목록" Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBox x:Name="JsonFilterTextBox"
+                         Grid.Row="0"
+                         Margin="0,0,0,8"
+                         Height="28"
+                         VerticalContentAlignment="Center"
+                         TextChanged="JsonFilterTextBox_TextChanged"/>
+                <ListBox x:Name="JsonFilesListBox"
+                         Grid.Row="1"
+                         DisplayMemberPath="DisplayName"
+                         MouseDoubleClick="JsonFilesListBox_MouseDoubleClick"/>
+            </Grid>
+        </GroupBox>
+
+        <GridSplitter Grid.Row="6"
+                      Grid.Column="0"
+                      Grid.ColumnSpan="3"
+                      Height="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Center"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="#D0D0D0"
+                      ShowsPreview="True"
+                      DragCompleted="JsonResultGridSplitter_DragCompleted"/>
+
+        <GroupBox Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Header="검색 결과" Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBox x:Name="ResultFilterTextBox"
+                         Grid.Row="0"
+                         Margin="0,0,0,8"
+                         Height="28"
+                         VerticalContentAlignment="Center"
+                         TextChanged="ResultFilterTextBox_TextChanged"/>
+
+                <DataGrid x:Name="ResultDataGrid"
+                          Grid.Row="1"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserResizeRows="False"
+                          HeadersVisibility="Column"
+                          RowHeaderWidth="0"
+                          PreviewMouseRightButtonDown="ResultDataGrid_PreviewMouseRightButtonDown"
+                          MouseDoubleClick="ResultDataGrid_MouseDoubleClick">
+                    <DataGrid.ContextMenu>
+                    <ContextMenu Opened="ResultContextMenu_Opened">
+                        <MenuItem Header="에디터 열기" Click="OpenEditorMenuItem_Click"/>
+                        <MenuItem Header="히스토리" Click="OpenHistoryMenuItem_Click"/>
+                        <MenuItem Header="파일 위치 열기" Click="OpenContainingFolderMenuItem_Click"/>
+                        <MenuItem Header="Perforce 체크아웃" Click="PerforceCheckoutMenuItem_Click"/>
+                        <MenuItem x:Name="WhoMenuItem" Header="Who?" Click="WhoMenuItem_Click" Visibility="Collapsed"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="CO" Width="54">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Grid HorizontalAlignment="Center">
+                                        <Ellipse Width="14" Height="14" Stroke="#666" StrokeThickness="1">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="#E53935"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCheckedOut}" Value="True">
+                                                            <Setter Property="Fill" Value="#8BC34A"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </Grid>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Excel 파일" Binding="{Binding FileName}" Width="220"/>
+                        <DataGridTextColumn Header="시트" Binding="{Binding SheetName}" Width="130"/>
+                        <DataGridTextColumn Header="행 번호" Binding="{Binding RowNumber}" Width="90"/>
+                        <DataGridTextColumn Header="행 내용" Binding="{Binding RowContent}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </GroupBox>
+
+        <Grid Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatusTextBlock" Grid.Column="0" Foreground="#444"/>
+            <TextBlock x:Name="VersionTextBlock" Grid.Column="1" Foreground="#666"/>
+        </Grid>
+    </Grid>
+</Window>

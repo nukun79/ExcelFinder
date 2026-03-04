@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <VersionCounterFile>$(MSBuildProjectDirectory)\version.counter.txt</VersionCounterFile>
+    <DefaultAssemblyVersion>1.0.303.1153</DefaultAssemblyVersion>
+    <_CurrentAssemblyVersionRaw Condition="Exists('$(VersionCounterFile)')">$([System.String]::Copy($([System.IO.File]::ReadAllText('$(VersionCounterFile)'))).Trim())</_CurrentAssemblyVersionRaw>
+    <CurrentAssemblyVersion Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_CurrentAssemblyVersionRaw)', '^\d+\.\d+\.\d+\.\d+$'))">$(_CurrentAssemblyVersionRaw)</CurrentAssemblyVersion>
+    <CurrentAssemblyVersion Condition="'$(CurrentAssemblyVersion)' == ''">$(DefaultAssemblyVersion)</CurrentAssemblyVersion>
+    <AssemblyVersion>$(CurrentAssemblyVersion)</AssemblyVersion>
+    <FileVersion>$(CurrentAssemblyVersion)</FileVersion>
+    <InformationalVersion>$(CurrentAssemblyVersion)</InformationalVersion>
+    <Version>$(CurrentAssemblyVersion)</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+  </ItemGroup>
+
+  <Target Name="EnsureVersionCounterFile" BeforeTargets="Build">
+    <WriteLinesToFile
+      File="$(VersionCounterFile)"
+      Lines="$(DefaultAssemblyVersion)"
+      Overwrite="true"
+      Condition="!Exists('$(VersionCounterFile)')" />
+  </Target>
+
+  <Target Name="PersistNextVersion" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <ReadLinesFromFile File="$(VersionCounterFile)">
+      <Output TaskParameter="Lines" ItemName="_VersionCounterLine" />
+    </ReadLinesFromFile>
+
+    <PropertyGroup>
+      <_CurrentVersionRaw>@(_VersionCounterLine->'%(Identity)')</_CurrentVersionRaw>
+      <_CurrentVersion Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_CurrentVersionRaw)', '^\d+\.\d+\.\d+\.\d+$'))">$(_CurrentVersionRaw)</_CurrentVersion>
+      <_CurrentVersion Condition="'$(_CurrentVersion)' == ''">$(DefaultAssemblyVersion)</_CurrentVersion>
+      <_NextAssemblyVersion>$([System.Version]::Parse('$(_CurrentVersion)').Major).$([System.Version]::Parse('$(_CurrentVersion)').Minor).$([System.Version]::Parse('$(_CurrentVersion)').Build).$([MSBuild]::Add($([System.Version]::Parse('$(_CurrentVersion)').Revision), 1))</_NextAssemblyVersion>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+      File="$(VersionCounterFile)"
+      Lines="$(_NextAssemblyVersion)"
+      Overwrite="true" />
+  </Target>
+
+</Project>

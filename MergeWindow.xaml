@@ -1,0 +1,67 @@
+<Window x:Class="ExcelFinder.MergeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Excel 머지"
+        Height="720"
+        Width="1180"
+        MinHeight="520"
+        MinWidth="860"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="기준 Excel"/>
+        <TextBox x:Name="LeftFileTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,10,8" Height="28" VerticalContentAlignment="Center"/>
+        <Button Grid.Row="0" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,8" Content="찾기..." Click="BrowseLeftButton_Click"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="비교 Excel"/>
+        <TextBox x:Name="RightFileTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,10,8" Height="28" VerticalContentAlignment="Center"/>
+        <Button Grid.Row="1" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,8" Content="찾기..." Click="BrowseRightButton_Click"/>
+
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button x:Name="CompareButton" Content="차이점 보기" Width="130" Height="30" Margin="0,0,8,0" Click="CompareButton_Click"/>
+            <Button x:Name="MergeButton" Content="머지" Width="110" Height="30" Margin="0,0,8,0" Click="MergeButton_Click"/>
+            <TextBlock Text="머지 시 비교 Excel 값으로 덮어씁니다." VerticalAlignment="Center" Foreground="#555"/>
+        </StackPanel>
+
+        <DataGrid x:Name="DiffDataGrid"
+                  Grid.Row="3"
+                  Grid.Column="0"
+                  Grid.ColumnSpan="3"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  HeadersVisibility="Column"
+                  RowHeaderWidth="0"
+                  PreviewMouseRightButtonDown="DiffDataGrid_PreviewMouseRightButtonDown">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="기준 에디터" Click="OpenLeftEditorMenuItem_Click"/>
+                    <MenuItem Header="비교 에디터" Click="OpenRightEditorMenuItem_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="시트" Binding="{Binding SheetName}" Width="140" IsReadOnly="True"/>
+                <DataGridTextColumn Header="셀" Binding="{Binding CellAddress}" Width="90" IsReadOnly="True"/>
+                <DataGridTextColumn Header="기준 값" Binding="{Binding LeftValue}" Width="*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="비교 값" Binding="{Binding RightValue}" Width="*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="결과 값" Binding="{Binding ResultValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Foreground="#444"/>
+    </Grid>
+</Window>

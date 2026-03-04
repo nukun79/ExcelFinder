@@ -1,0 +1,38 @@
+<Window x:Class="ExcelFinder.HistoryDiffWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="History Diff"
+        Height="720"
+        Width="1180"
+        MinHeight="520"
+        MinWidth="900"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="HeaderTextBlock" Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+        <DataGrid x:Name="DiffDataGrid"
+                  Grid.Row="1"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  HeadersVisibility="Column"
+                  RowHeaderWidth="0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="시트" Binding="{Binding SheetName}" Width="150"/>
+                <DataGridTextColumn Header="셀" Binding="{Binding CellAddress}" Width="100"/>
+                <DataGridTextColumn Header="이전 리비전" Binding="{Binding LeftValue}" Width="*"/>
+                <DataGridTextColumn Header="선택 리비전" Binding="{Binding RightValue}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="2" Foreground="#444"/>
+    </Grid>
+</Window>
