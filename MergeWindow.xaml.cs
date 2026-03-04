@@ -355,6 +355,8 @@ public partial class MergeWindow : Window
 public sealed class ExcelDiffItem
 {
     public string SheetName { get; set; } = string.Empty;
+    public int LineNumber { get; set; }
+    public string ColumnName { get; set; } = string.Empty;
     public string CellAddress { get; set; } = string.Empty;
     public string LeftValue { get; set; } = string.Empty;
     public string RightValue { get; set; } = string.Empty;

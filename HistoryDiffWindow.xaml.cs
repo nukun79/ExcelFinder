@@ -1,7 +1,11 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using ClosedXML.Excel;
 
 namespace ExcelFinder;
@@ -11,6 +15,9 @@ public partial class HistoryDiffWindow : Window
     private readonly string _depotPath;
     private readonly int _rightRevision;
     private readonly ObservableCollection<ExcelDiffItem> _diffs = [];
+    private readonly List<ExcelDiffItem> _allDiffs = [];
+    private string _tempDir = string.Empty;
+    private string _rightRevisionPath = string.Empty;
 
     public HistoryDiffWindow(string depotPath, int rightRevision)
     {
@@ -22,6 +29,7 @@ public partial class HistoryDiffWindow : Window
         HeaderTextBlock.Text = $"History Diff: {_depotPath}#{_rightRevision - 1} -> #{_rightRevision}";
 
         Loaded += HistoryDiffWindow_Loaded;
+        Closed += HistoryDiffWindow_Closed;
     }
 
     private async void HistoryDiffWindow_Loaded(object sender, RoutedEventArgs e)
@@ -33,11 +41,12 @@ public partial class HistoryDiffWindow : Window
     {
         StatusTextBlock.Text = "Diff 조회 중...";
 
-        string tempDir = Path.Combine(Path.GetTempPath(), "ExcelFinder", "HistoryDiff", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        CleanupTempFiles();
+        _tempDir = Path.Combine(Path.GetTempPath(), "ExcelFinder", "HistoryDiff", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_tempDir);
 
-        string leftPath = Path.Combine(tempDir, "left.xlsx");
-        string rightPath = Path.Combine(tempDir, "right.xlsx");
+        string leftPath = Path.Combine(_tempDir, "left.xlsx");
+        _rightRevisionPath = Path.Combine(_tempDir, "right.xlsx");
 
         try
         {
@@ -51,40 +60,45 @@ public partial class HistoryDiffWindow : Window
                 return;
             }
 
-            (bool rightOk, string rightMsg) = await Task.Run(() => PerforceHelper.ExportDepotRevisionToFile(rightSpec, rightPath));
+            (bool rightOk, string rightMsg) = await Task.Run(() => PerforceHelper.ExportDepotRevisionToFile(rightSpec, _rightRevisionPath));
             if (!rightOk)
             {
                 StatusTextBlock.Text = $"선택 리비전 가져오기 실패: {rightMsg}";
                 return;
             }
 
-            List<ExcelDiffItem> diffs = await Task.Run(() => BuildDiffs(leftPath, rightPath));
-            _diffs.Clear();
-            foreach (ExcelDiffItem diff in diffs)
-            {
-                _diffs.Add(diff);
-            }
-
-            StatusTextBlock.Text = diffs.Count > 0 ? $"차이점 {diffs.Count}건" : "차이점이 없습니다.";
+            List<ExcelDiffItem> diffs = await Task.Run(() => BuildDiffs(leftPath, _rightRevisionPath));
+            _allDiffs.Clear();
+            _allDiffs.AddRange(diffs);
+            ApplyFindFilter();
         }
         catch (Exception ex)
         {
             StatusTextBlock.Text = $"Diff 오류: {ex.Message}";
         }
-        finally
+    }
+
+    private void HistoryDiffWindow_Closed(object? sender, EventArgs e)
+    {
+        CleanupTempFiles();
+    }
+
+    private void CleanupTempFiles()
+    {
+        try
         {
-            try
+            if (!string.IsNullOrWhiteSpace(_tempDir) && Directory.Exists(_tempDir))
             {
-                if (Directory.Exists(tempDir))
-                {
-                    Directory.Delete(tempDir, true);
-                }
-            }
-            catch
-            {
-                // 임시 폴더 정리 실패는 무시
+                Directory.Delete(_tempDir, true);
             }
         }
+        catch
+        {
+            // 임시 폴더 정리 실패는 무시
+        }
+
+        _tempDir = string.Empty;
+        _rightRevisionPath = string.Empty;
     }
 
     private static List<ExcelDiffItem> BuildDiffs(string leftPath, string rightPath)
@@ -117,6 +131,8 @@ public partial class HistoryDiffWindow : Window
                     result.Add(new ExcelDiffItem
                     {
                         SheetName = sheetName,
+                        LineNumber = row,
+                        ColumnName = "(신규 행)",
                         CellAddress = $"ROW {row} (NEW)",
                         LeftValue = "(없음)",
                         RightValue = BuildRowContent(rightSheet, row, maxCol),
@@ -138,6 +154,8 @@ public partial class HistoryDiffWindow : Window
                     result.Add(new ExcelDiffItem
                     {
                         SheetName = sheetName,
+                        LineNumber = row,
+                        ColumnName = GetDisplayColumnName(leftSheet, rightSheet, col),
                         CellAddress = XLHelper.GetColumnLetterFromNumber(col) + row,
                         LeftValue = leftValue,
                         RightValue = rightValue,
@@ -185,7 +203,7 @@ public partial class HistoryDiffWindow : Window
                 continue;
             }
 
-            string colName = XLHelper.GetColumnLetterFromNumber(col);
+            string colName = GetDisplayColumnName(null, sheet, col);
             parts.Add($"{colName}:{value}");
         }
 
@@ -200,5 +218,153 @@ public partial class HistoryDiffWindow : Window
     private static int GetLastUsedCol(IXLWorksheet? sheet)
     {
         return sheet?.RangeUsed()?.RangeAddress.LastAddress.ColumnNumber ?? 0;
+    }
+
+    private static string GetDisplayColumnName(IXLWorksheet? leftSheet, IXLWorksheet? rightSheet, int col)
+    {
+        string rightHeader = rightSheet?.Cell(1, col).GetFormattedString().Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(rightHeader))
+        {
+            return rightHeader;
+        }
+
+        string leftHeader = leftSheet?.Cell(1, col).GetFormattedString().Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(leftHeader))
+        {
+            return leftHeader;
+        }
+
+        return XLHelper.GetColumnLetterFromNumber(col);
+    }
+
+    private void FindButton_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyFindFilter();
+    }
+
+    private void FindTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        ApplyFindFilter();
+        e.Handled = true;
+    }
+
+    private void ApplyFindFilter()
+    {
+        _diffs.Clear();
+
+        if (_allDiffs.Count == 0)
+        {
+            StatusTextBlock.Text = "차이점이 없습니다.";
+            return;
+        }
+
+        string keyword = FindTextBox.Text.Trim();
+        IEnumerable<ExcelDiffItem> filtered = string.IsNullOrWhiteSpace(keyword)
+            ? _allDiffs
+            : _allDiffs.Where(x => IsMatch(x, keyword));
+
+        foreach (ExcelDiffItem diff in filtered)
+        {
+            _diffs.Add(diff);
+        }
+
+        StatusTextBlock.Text = string.IsNullOrWhiteSpace(keyword)
+            ? $"차이점 {_diffs.Count}건"
+            : $"검색 결과 {_diffs.Count}건 / 전체 {_allDiffs.Count}건";
+    }
+
+    private static bool IsMatch(ExcelDiffItem item, string keyword)
+    {
+        return Contains(item.SheetName, keyword)
+               || item.LineNumber.ToString().Contains(keyword, StringComparison.OrdinalIgnoreCase)
+               || Contains(item.ColumnName, keyword)
+               || Contains(item.LeftValue, keyword)
+               || Contains(item.RightValue, keyword)
+               || Contains(item.CellAddress, keyword);
+    }
+
+    private static bool Contains(string? text, string keyword)
+    {
+        return (text ?? string.Empty).Contains(keyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void DiffDataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        DependencyObject? source = e.OriginalSource as DependencyObject;
+        if (source is null)
+        {
+            return;
+        }
+
+        DataGridRow? row = FindVisualParent<DataGridRow>(source);
+        if (row?.Item is ExcelDiffItem)
+        {
+            row.IsSelected = true;
+            DiffDataGrid.SelectedItem = row.Item;
+        }
+    }
+
+    private void OpenEditorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (DiffDataGrid.SelectedItem is not ExcelDiffItem selected)
+        {
+            StatusTextBlock.Text = "선택된 Diff 항목이 없습니다.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_rightRevisionPath) || !File.Exists(_rightRevisionPath))
+        {
+            StatusTextBlock.Text = "리비전 파일이 준비되지 않아 에디터를 열 수 없습니다.";
+            return;
+        }
+
+        if (selected.LineNumber <= 0)
+        {
+            StatusTextBlock.Text = "유효한 라인 번호가 없어 에디터를 열 수 없습니다.";
+            return;
+        }
+
+        List<string> highlightAddresses = CollectLineHighlightAddresses(selected);
+        var editor = new ExcelEditorWindow(_rightRevisionPath, selected.SheetName, selected.LineNumber, highlightAddresses)
+        {
+            Owner = this
+        };
+        editor.Show();
+    }
+
+    private List<string> CollectLineHighlightAddresses(ExcelDiffItem selected)
+    {
+        return _allDiffs
+            .Where(x => string.Equals(x.SheetName, selected.SheetName, StringComparison.OrdinalIgnoreCase)
+                        && x.LineNumber == selected.LineNumber
+                        && IsCellAddress(x.CellAddress))
+            .Select(x => x.CellAddress)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool IsCellAddress(string? value)
+    {
+        return Regex.IsMatch(value ?? string.Empty, @"^[A-Za-z]+\d+$");
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T typed)
+            {
+                return typed;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
+        }
+
+        return null;
     }
 }

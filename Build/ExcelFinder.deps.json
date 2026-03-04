@@ -7,7 +7,7 @@
   "targets": {
     ".NETCoreApp,Version=v8.0": {},
     ".NETCoreApp,Version=v8.0/win-x64": {
-      "ExcelFinder/1.0.0.75": {
+      "ExcelFinder/1.0.0.83": {
         "dependencies": {
           "ClosedXML": "0.104.2",
           "runtimepack.Microsoft.NETCore.App.Runtime.win-x64": "8.0.17",
@@ -1035,7 +1035,7 @@
     }
   },
   "libraries": {
-    "ExcelFinder/1.0.0.75": {
+    "ExcelFinder/1.0.0.83": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

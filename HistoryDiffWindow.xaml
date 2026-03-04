@@ -10,29 +10,51 @@
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock x:Name="HeaderTextBlock" Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap"/>
 
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBox x:Name="FindTextBox"
+                     Width="320"
+                     Height="28"
+                     VerticalContentAlignment="Center"
+                     KeyDown="FindTextBox_KeyDown"/>
+            <Button x:Name="FindButton"
+                    Content="찾기"
+                    Width="90"
+                    Height="28"
+                    Margin="8,0,0,0"
+                    Click="FindButton_Click"/>
+        </StackPanel>
+
         <DataGrid x:Name="DiffDataGrid"
-                  Grid.Row="1"
+                  Grid.Row="2"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   CanUserResizeRows="False"
+                  PreviewMouseRightButtonDown="DiffDataGrid_PreviewMouseRightButtonDown"
                   HeadersVisibility="Column"
                   RowHeaderWidth="0">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="에디터 열기" Click="OpenEditorMenuItem_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="시트" Binding="{Binding SheetName}" Width="150"/>
-                <DataGridTextColumn Header="셀" Binding="{Binding CellAddress}" Width="100"/>
+                <DataGridTextColumn Header="라인" Binding="{Binding LineNumber}" Width="80"/>
+                <DataGridTextColumn Header="컬럼명" Binding="{Binding ColumnName}" Width="180"/>
                 <DataGridTextColumn Header="이전 리비전" Binding="{Binding LeftValue}" Width="*"/>
                 <DataGridTextColumn Header="선택 리비전" Binding="{Binding RightValue}" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock x:Name="StatusTextBlock" Grid.Row="2" Foreground="#444"/>
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="3" Foreground="#444"/>
     </Grid>
 </Window>
