@@ -15,6 +15,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -26,7 +27,7 @@
                 <ColumnDefinition Width="90"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Source"/>
-            <TextBox x:Name="SourcePathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center"/>
+            <TextBox x:Name="SourcePathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center" TextChanged="PathTextBox_TextChanged"/>
             <Button Grid.Column="2" Height="28" Content="찾기..." Click="BrowseSourceButton_Click"/>
         </Grid>
 
@@ -37,7 +38,7 @@
                 <ColumnDefinition Width="90"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Target"/>
-            <TextBox x:Name="TargetPathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center"/>
+            <TextBox x:Name="TargetPathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center" TextChanged="PathTextBox_TextChanged"/>
             <Button Grid.Column="2" Height="28" Content="찾기..." Click="BrowseTargetButton_Click"/>
         </Grid>
 
@@ -50,7 +51,7 @@
                 <ColumnDefinition Width="90"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Source Path"/>
-            <TextBox x:Name="SourceDirPathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center"/>
+            <TextBox x:Name="SourceDirPathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center" TextChanged="PathTextBox_TextChanged"/>
             <Button Grid.Column="2" Height="28" Content="찾기..." Click="BrowseSourceDirButton_Click"/>
         </Grid>
 
@@ -61,7 +62,7 @@
                 <ColumnDefinition Width="90"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Target Path"/>
-            <TextBox x:Name="TargetDirPathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center"/>
+            <TextBox x:Name="TargetDirPathTextBox" Grid.Column="1" Margin="0,0,8,0" Height="28" VerticalContentAlignment="Center" TextChanged="PathTextBox_TextChanged"/>
             <Button Grid.Column="2" Height="28" Content="찾기..." Click="BrowseTargetDirButton_Click"/>
         </Grid>
 
@@ -71,8 +72,21 @@
             <Button Width="90" Height="28" Margin="8,0,0,0" Content="닫기" Click="CloseButton_Click"/>
         </StackPanel>
 
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBox x:Name="FindTextBox"
+                     Width="340"
+                     Height="28"
+                     VerticalContentAlignment="Center"
+                     KeyDown="FindTextBox_KeyDown"/>
+            <Button Width="90"
+                    Height="28"
+                    Margin="8,0,0,0"
+                    Content="찾기"
+                    Click="FindButton_Click"/>
+        </StackPanel>
+
         <DataGrid x:Name="DiffDataGrid"
-                  Grid.Row="6"
+                  Grid.Row="7"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserAddRows="False"
@@ -90,6 +104,6 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock x:Name="StatusTextBlock" Grid.Row="7" Foreground="#444"/>
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="8" Foreground="#444"/>
     </Grid>
 </Window>

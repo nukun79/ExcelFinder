@@ -2,18 +2,55 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using Microsoft.Win32;
 
 namespace ExcelFinder;
 
 public partial class JsonDiffWindow : Window
 {
+    private readonly AppSettingsStore _settingsStore = AppSettingsStore.CreateDefault();
     private readonly ObservableCollection<JsonDiffItem> _items = [];
+    private readonly List<JsonDiffItem> _allDiffs = [];
+    private bool _suppressPathSave;
 
     public JsonDiffWindow()
     {
         InitializeComponent();
         DiffDataGrid.ItemsSource = _items;
+
+        LoadSavedPaths();
+    }
+
+    private void LoadSavedPaths()
+    {
+        AppSettings settings = _settingsStore.Load();
+        _suppressPathSave = true;
+        SourcePathTextBox.Text = settings.JsonDiffSourceFilePath ?? string.Empty;
+        TargetPathTextBox.Text = settings.JsonDiffTargetFilePath ?? string.Empty;
+        SourceDirPathTextBox.Text = settings.JsonDiffSourceDirPath ?? string.Empty;
+        TargetDirPathTextBox.Text = settings.JsonDiffTargetDirPath ?? string.Empty;
+        _suppressPathSave = false;
+    }
+
+    private void PathTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        SavePaths();
+    }
+
+    private void SavePaths()
+    {
+        if (_suppressPathSave)
+        {
+            return;
+        }
+
+        AppSettings settings = _settingsStore.Load();
+        settings.JsonDiffSourceFilePath = SourcePathTextBox.Text.Trim();
+        settings.JsonDiffTargetFilePath = TargetPathTextBox.Text.Trim();
+        settings.JsonDiffSourceDirPath = SourceDirPathTextBox.Text.Trim();
+        settings.JsonDiffTargetDirPath = TargetDirPathTextBox.Text.Trim();
+        _settingsStore.Save(settings);
     }
 
     private void BrowseSourceButton_Click(object sender, RoutedEventArgs e)
@@ -22,6 +59,7 @@ public partial class JsonDiffWindow : Window
         if (path is not null)
         {
             SourcePathTextBox.Text = path;
+            SavePaths();
         }
     }
 
@@ -31,6 +69,7 @@ public partial class JsonDiffWindow : Window
         if (path is not null)
         {
             TargetPathTextBox.Text = path;
+            SavePaths();
         }
     }
 
@@ -40,6 +79,7 @@ public partial class JsonDiffWindow : Window
         if (path is not null)
         {
             SourceDirPathTextBox.Text = path;
+            SavePaths();
         }
     }
 
@@ -49,6 +89,7 @@ public partial class JsonDiffWindow : Window
         if (path is not null)
         {
             TargetDirPathTextBox.Text = path;
+            SavePaths();
         }
     }
 
@@ -92,6 +133,7 @@ public partial class JsonDiffWindow : Window
     private void DiffButton_Click(object sender, RoutedEventArgs e)
     {
         _items.Clear();
+        _allDiffs.Clear();
 
         string sourcePath = SourcePathTextBox.Text.Trim();
         string targetPath = TargetPathTextBox.Text.Trim();
@@ -115,14 +157,8 @@ public partial class JsonDiffWindow : Window
             string fileLabel = $"{Path.GetFileName(sourcePath)} ↔ {Path.GetFileName(targetPath)}";
             List<JsonDiffItem> diffs = BuildDiffs(sourceRows, targetRows, fileLabel);
 
-            foreach (JsonDiffItem item in diffs)
-            {
-                _items.Add(item);
-            }
-
-            StatusTextBlock.Text = diffs.Count > 0
-                ? $"차이점 {diffs.Count}건"
-                : "차이점이 없습니다.";
+            _allDiffs.AddRange(diffs);
+            ApplyFindFilter();
         }
         catch (Exception ex)
         {
@@ -133,6 +169,7 @@ public partial class JsonDiffWindow : Window
     private void DiffFolderButton_Click(object sender, RoutedEventArgs e)
     {
         _items.Clear();
+        _allDiffs.Clear();
 
         string sourceDir = SourceDirPathTextBox.Text.Trim();
         string targetDir = TargetDirPathTextBox.Text.Trim();
@@ -175,20 +212,78 @@ public partial class JsonDiffWindow : Window
                 }
 
                 diffFileCount++;
-                foreach (JsonDiffItem item in diffs)
-                {
-                    _items.Add(item);
-                }
+                _allDiffs.AddRange(diffs);
             }
 
-            StatusTextBlock.Text = _items.Count > 0
-                ? $"차이점 {_items.Count}건 / 차이 파일 {diffFileCount}개 (비교 파일 {commonFiles.Count}개)"
-                : $"차이점이 없습니다. (비교 파일 {commonFiles.Count}개)";
+            ApplyFindFilter();
+            if (_allDiffs.Count == 0)
+            {
+                StatusTextBlock.Text = $"차이점이 없습니다. (비교 파일 {commonFiles.Count}개)";
+                return;
+            }
+
+            StatusTextBlock.Text = $"차이점 {_allDiffs.Count}건 / 차이 파일 {diffFileCount}개 (비교 파일 {commonFiles.Count}개)";
         }
         catch (Exception ex)
         {
             StatusTextBlock.Text = $"폴더 비교 실패: {ex.Message}";
         }
+    }
+
+    private void FindButton_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyFindFilter();
+    }
+
+    private void FindTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        ApplyFindFilter();
+        e.Handled = true;
+    }
+
+    private void ApplyFindFilter()
+    {
+        _items.Clear();
+
+        if (_allDiffs.Count == 0)
+        {
+            StatusTextBlock.Text = "차이점이 없습니다.";
+            return;
+        }
+
+        string keyword = FindTextBox.Text.Trim();
+        IEnumerable<JsonDiffItem> filtered = string.IsNullOrWhiteSpace(keyword)
+            ? _allDiffs
+            : _allDiffs.Where(x => IsMatch(x, keyword));
+
+        foreach (JsonDiffItem item in filtered)
+        {
+            _items.Add(item);
+        }
+
+        StatusTextBlock.Text = string.IsNullOrWhiteSpace(keyword)
+            ? $"차이점 {_allDiffs.Count}건"
+            : $"검색 결과 {_items.Count}건 / 전체 {_allDiffs.Count}건";
+    }
+
+    private static bool IsMatch(JsonDiffItem item, string keyword)
+    {
+        return Contains(item.JsonFile, keyword)
+               || Contains(item.DiffType, keyword)
+               || Contains(item.Key, keyword)
+               || Contains(item.FieldName, keyword)
+               || Contains(item.SourceValue, keyword)
+               || Contains(item.TargetValue, keyword);
+    }
+
+    private static bool Contains(string? text, string keyword)
+    {
+        return (text ?? string.Empty).Contains(keyword, StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<Dictionary<string, string>> LoadRows(string path)

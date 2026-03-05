@@ -1044,6 +1044,10 @@ public sealed class AppSettings
     public string JsonExporterExcelFolder { get; set; } = string.Empty;
     public string JsonExporterJsonFolder { get; set; } = string.Empty;
     public List<string> JsonExporterCheckedNames { get; set; } = [];
+    public string JsonDiffSourceFilePath { get; set; } = string.Empty;
+    public string JsonDiffTargetFilePath { get; set; } = string.Empty;
+    public string JsonDiffSourceDirPath { get; set; } = string.Empty;
+    public string JsonDiffTargetDirPath { get; set; } = string.Empty;
     public string CheckinPrefix { get; set; } = string.Empty;
     public double JsonListHeight { get; set; }
     public string LastBrowseFolder { get; set; } = string.Empty;

@@ -441,9 +441,10 @@ public partial class JsonExtractWindow : Window
                         continue;
                     }
 
-                    string header = string.IsNullOrWhiteSpace(rawHeader)
+                    string normalizedHeader = NormalizeHeader(rawHeader);
+                    string header = string.IsNullOrWhiteSpace(normalizedHeader)
                         ? XLHelper.GetColumnLetterFromNumber(col)
-                        : rawHeader;
+                        : normalizedHeader;
 
                     string uniqueHeader = header;
                     int suffix = 2;
@@ -485,6 +486,18 @@ public partial class JsonExtractWindow : Window
         }
 
         return allRows;
+    }
+
+    private static string NormalizeHeader(string rawHeader)
+    {
+        string trimmed = rawHeader.Trim();
+        int dollarIndex = trimmed.IndexOf('$');
+        if (dollarIndex <= 0)
+        {
+            return trimmed;
+        }
+
+        return trimmed.Substring(0, dollarIndex).Trim();
     }
 }
 
