@@ -38,6 +38,7 @@
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   CanUserResizeRows="False"
+                  MouseDoubleClick="DiffDataGrid_MouseDoubleClick"
                   PreviewMouseRightButtonDown="DiffDataGrid_PreviewMouseRightButtonDown"
                   HeadersVisibility="Column"
                   RowHeaderWidth="0">
@@ -49,6 +50,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="시트" Binding="{Binding SheetName}" Width="150"/>
                 <DataGridTextColumn Header="라인" Binding="{Binding LineNumber}" Width="80"/>
+                <DataGridTextColumn Header="UID" Binding="{Binding UidValue}" Width="140"/>
                 <DataGridTextColumn Header="컬럼명" Binding="{Binding ColumnName}" Width="180"/>
                 <DataGridTextColumn Header="이전 리비전" Binding="{Binding LeftValue}" Width="*"/>
                 <DataGridTextColumn Header="선택 리비전" Binding="{Binding RightValue}" Width="*"/>

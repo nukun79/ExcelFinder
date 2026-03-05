@@ -356,11 +356,13 @@ public partial class ExcelEditorWindow : Window
 
     private void SheetDataGrid_LoadingRow(object sender, System.Windows.Controls.DataGridRowEventArgs e)
     {
-        e.Row.Background = e.Row.GetIndex() == _targetTableRowIndex
-            ? System.Windows.Media.Brushes.LightGoldenrodYellow
+        bool isTargetRow = e.Row.GetIndex() == _targetTableRowIndex;
+        e.Row.Background = isTargetRow
+            ? new SolidColorBrush(Color.FromRgb(255, 225, 110))
             : System.Windows.Media.Brushes.White;
+        e.Row.FontWeight = isTargetRow ? FontWeights.SemiBold : FontWeights.Normal;
 
-        if (e.Row.GetIndex() == _targetTableRowIndex && _highlightTableColumnIndexes.Count > 0)
+        if (isTargetRow && _highlightTableColumnIndexes.Count > 0)
         {
             e.Row.Dispatcher.BeginInvoke(new Action(() => HighlightCellsInRow(e.Row)), DispatcherPriority.Loaded);
         }

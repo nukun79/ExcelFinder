@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -119,11 +120,13 @@ public partial class HistoryDiffWindow : Window
 
             int maxRow = Math.Max(GetLastUsedRow(leftSheet), GetLastUsedRow(rightSheet));
             int maxCol = Math.Max(GetLastUsedCol(leftSheet), GetLastUsedCol(rightSheet));
+            int? uidCol = FindUidColumnIndex(leftSheet, rightSheet, maxCol);
 
             for (int row = 1; row <= maxRow; row++)
             {
                 bool leftRowHasValue = RowHasAnyValue(leftSheet, row, maxCol);
                 bool rightRowHasValue = RowHasAnyValue(rightSheet, row, maxCol);
+                string uidValue = GetUidValue(leftSheet, rightSheet, row, uidCol);
 
                 // 이전 리비전에는 없고 선택 리비전에만 새로 생긴 행은 한 줄로 묶어서 보여준다.
                 if (!leftRowHasValue && rightRowHasValue)
@@ -132,6 +135,7 @@ public partial class HistoryDiffWindow : Window
                     {
                         SheetName = sheetName,
                         LineNumber = row,
+                        UidValue = uidValue,
                         ColumnName = "(신규 행)",
                         CellAddress = $"ROW {row} (NEW)",
                         LeftValue = "(없음)",
@@ -155,6 +159,7 @@ public partial class HistoryDiffWindow : Window
                     {
                         SheetName = sheetName,
                         LineNumber = row,
+                        UidValue = uidValue,
                         ColumnName = GetDisplayColumnName(leftSheet, rightSheet, col),
                         CellAddress = XLHelper.GetColumnLetterFromNumber(col) + row,
                         LeftValue = leftValue,
@@ -218,6 +223,47 @@ public partial class HistoryDiffWindow : Window
     private static int GetLastUsedCol(IXLWorksheet? sheet)
     {
         return sheet?.RangeUsed()?.RangeAddress.LastAddress.ColumnNumber ?? 0;
+    }
+
+    private static int? FindUidColumnIndex(IXLWorksheet? leftSheet, IXLWorksheet? rightSheet, int maxCol)
+    {
+        if (maxCol <= 0)
+        {
+            return null;
+        }
+
+        for (int col = 1; col <= maxCol; col++)
+        {
+            string rightHeader = rightSheet?.Cell(1, col).GetFormattedString().Trim() ?? string.Empty;
+            if (string.Equals(rightHeader, "UID", StringComparison.OrdinalIgnoreCase))
+            {
+                return col;
+            }
+
+            string leftHeader = leftSheet?.Cell(1, col).GetFormattedString().Trim() ?? string.Empty;
+            if (string.Equals(leftHeader, "UID", StringComparison.OrdinalIgnoreCase))
+            {
+                return col;
+            }
+        }
+
+        return null;
+    }
+
+    private static string GetUidValue(IXLWorksheet? leftSheet, IXLWorksheet? rightSheet, int row, int? uidCol)
+    {
+        if (row <= 0 || !uidCol.HasValue)
+        {
+            return string.Empty;
+        }
+
+        string rightValue = rightSheet?.Cell(row, uidCol.Value).GetFormattedString().Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(rightValue))
+        {
+            return rightValue;
+        }
+
+        return leftSheet?.Cell(row, uidCol.Value).GetFormattedString().Trim() ?? string.Empty;
     }
 
     private static string GetDisplayColumnName(IXLWorksheet? leftSheet, IXLWorksheet? rightSheet, int col)
@@ -293,6 +339,16 @@ public partial class HistoryDiffWindow : Window
         return (text ?? string.Empty).Contains(keyword, StringComparison.OrdinalIgnoreCase);
     }
 
+    private void DiffDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DiffDataGrid.SelectedItem is not ExcelDiffItem)
+        {
+            return;
+        }
+
+        OpenRightRevisionFile();
+    }
+
     private void DiffDataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         DependencyObject? source = e.OriginalSource as DependencyObject;
@@ -335,6 +391,29 @@ public partial class HistoryDiffWindow : Window
             Owner = this
         };
         editor.Show();
+    }
+
+    private void OpenRightRevisionFile()
+    {
+        if (string.IsNullOrWhiteSpace(_rightRevisionPath) || !File.Exists(_rightRevisionPath))
+        {
+            StatusTextBlock.Text = "리비전 파일이 준비되지 않아 Excel 파일을 열 수 없습니다.";
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _rightRevisionPath,
+                UseShellExecute = true
+            });
+            StatusTextBlock.Text = $"열기: {Path.GetFileName(_rightRevisionPath)}";
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = $"Excel 파일 열기 실패: {ex.Message}";
+        }
     }
 
     private List<string> CollectLineHighlightAddresses(ExcelDiffItem selected)

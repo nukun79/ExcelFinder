@@ -27,7 +27,9 @@
             <MenuItem Header="설정">
                 <MenuItem Header="Perforce 정보 설정..." Click="OpenPerforceConfigMenuItem_Click"/>
             </MenuItem>
-            <MenuItem Header="머지" Click="OpenMergeWindowMenuItem_Click"/>
+            <MenuItem Header="ExcelMerge" Click="OpenMergeWindowMenuItem_Click"/>
+            <MenuItem Header="JsonExporter" Click="OpenJsonExtractWindowMenuItem_Click"/>
+            <MenuItem Header="JsonDiff" Click="OpenJsonDiffWindowMenuItem_Click"/>
         </Menu>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="Excel Folder"/>

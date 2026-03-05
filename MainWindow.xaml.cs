@@ -535,6 +535,44 @@ public partial class MainWindow : Window
         mergeWindow.ShowDialog();
     }
 
+    private void OpenJsonExtractWindowMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        string excelFolder = ExcelFolderTextBox.Text.Trim();
+        if (!Directory.Exists(excelFolder))
+        {
+            StatusTextBlock.Text = "Excel 폴더 경로를 확인해 주세요.";
+            return;
+        }
+
+        string jsonFolder = JsonFolderTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(jsonFolder))
+        {
+            StatusTextBlock.Text = "JSON 폴더 경로를 확인해 주세요.";
+            return;
+        }
+
+        var extractWindow = new JsonExtractWindow(excelFolder, jsonFolder)
+        {
+            Owner = this
+        };
+
+        bool? result = extractWindow.ShowDialog();
+        if (result == true)
+        {
+            RefreshJsonList();
+            StatusTextBlock.Text = "JsonExporter 작업이 완료되었습니다.";
+        }
+    }
+
+    private void OpenJsonDiffWindowMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var diffWindow = new JsonDiffWindow
+        {
+            Owner = this
+        };
+        diffWindow.ShowDialog();
+    }
+
     private void OpenPerforceConfigWindow()
     {
         PerforceClientSettings? initialSettings = null;
@@ -1003,6 +1041,9 @@ public sealed class AppSettings
 {
     public string ExcelFolder { get; set; } = string.Empty;
     public string JsonFolder { get; set; } = string.Empty;
+    public string JsonExporterExcelFolder { get; set; } = string.Empty;
+    public string JsonExporterJsonFolder { get; set; } = string.Empty;
+    public List<string> JsonExporterCheckedNames { get; set; } = [];
     public string CheckinPrefix { get; set; } = string.Empty;
     public double JsonListHeight { get; set; }
     public string LastBrowseFolder { get; set; } = string.Empty;
