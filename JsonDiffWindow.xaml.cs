@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace ExcelFinder;
@@ -13,6 +15,7 @@ public partial class JsonDiffWindow : Window
     private readonly ObservableCollection<JsonDiffItem> _items = [];
     private readonly List<JsonDiffItem> _allDiffs = [];
     private bool _suppressPathSave;
+    private string _contextCellValue = string.Empty;
 
     public JsonDiffWindow()
     {
@@ -128,6 +131,49 @@ public partial class JsonDiffWindow : Window
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void DiffDataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _contextCellValue = string.Empty;
+
+        DependencyObject? source = e.OriginalSource as DependencyObject;
+        if (source is null)
+        {
+            return;
+        }
+
+        DataGridCell? cell = FindVisualParent<DataGridCell>(source);
+        DataGridRow? row = FindVisualParent<DataGridRow>(source);
+        if (row?.Item is not JsonDiffItem item)
+        {
+            return;
+        }
+
+        row.IsSelected = true;
+        DiffDataGrid.SelectedItem = row.Item;
+
+        int displayIndex = cell?.Column?.DisplayIndex ?? -1;
+        _contextCellValue = GetCellValueByDisplayIndex(item, displayIndex);
+    }
+
+    private void CopyCellValueMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        string value = _contextCellValue;
+        if (string.IsNullOrEmpty(value) && DiffDataGrid.SelectedItem is JsonDiffItem selected)
+        {
+            value = selected.TargetValue;
+        }
+
+        try
+        {
+            Clipboard.SetText(value ?? string.Empty);
+            StatusTextBlock.Text = "값을 클립보드에 복사했습니다.";
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = $"복사 실패: {ex.Message}";
+        }
     }
 
     private void DiffButton_Click(object sender, RoutedEventArgs e)
@@ -346,43 +392,43 @@ public partial class JsonDiffWindow : Window
 
             if (!hasSource && hasTarget)
             {
-                foreach ((string field, string value) in targetRow!)
+                Dictionary<string, string> addedFields = targetRow!
+                    .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+                result.Add(new JsonDiffItem
                 {
-                    result.Add(new JsonDiffItem
-                    {
-                        JsonFile = jsonFile,
-                        DiffType = "추가",
-                        Key = key,
-                        FieldName = field,
-                        SourceValue = string.Empty,
-                        TargetValue = value
-                    });
-                }
-
+                    JsonFile = jsonFile,
+                    DiffType = "추가",
+                    Key = key,
+                    FieldName = string.Join(" | ", addedFields.Keys),
+                    SourceValue = string.Empty,
+                    TargetValue = BuildSummaryText(addedFields)
+                });
                 continue;
             }
 
             if (hasSource && !hasTarget)
             {
-                foreach ((string field, string value) in sourceRow!)
+                Dictionary<string, string> deletedFields = sourceRow!
+                    .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+                result.Add(new JsonDiffItem
                 {
-                    result.Add(new JsonDiffItem
-                    {
-                        JsonFile = jsonFile,
-                        DiffType = "삭제",
-                        Key = key,
-                        FieldName = field,
-                        SourceValue = value,
-                        TargetValue = string.Empty
-                    });
-                }
-
+                    JsonFile = jsonFile,
+                    DiffType = "삭제",
+                    Key = key,
+                    FieldName = string.Join(" | ", deletedFields.Keys),
+                    SourceValue = BuildSummaryText(deletedFields),
+                    TargetValue = string.Empty
+                });
                 continue;
             }
 
             IEnumerable<string> fields = sourceRow!.Keys.Union(targetRow!.Keys, StringComparer.OrdinalIgnoreCase)
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
 
+            var changedSource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var changedTarget = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (string field in fields)
             {
                 string sourceValue = sourceRow.TryGetValue(field, out string? s) ? s : string.Empty;
@@ -393,14 +439,20 @@ public partial class JsonDiffWindow : Window
                     continue;
                 }
 
+                changedSource[field] = sourceValue;
+                changedTarget[field] = targetValue;
+            }
+
+            if (changedSource.Count > 0)
+            {
                 result.Add(new JsonDiffItem
                 {
                     JsonFile = jsonFile,
                     DiffType = "변경",
                     Key = key,
-                    FieldName = field,
-                    SourceValue = sourceValue,
-                    TargetValue = targetValue
+                    FieldName = string.Join(" | ", changedSource.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)),
+                    SourceValue = BuildSummaryText(changedSource),
+                    TargetValue = BuildSummaryText(changedTarget)
                 });
             }
         }
@@ -431,6 +483,42 @@ public partial class JsonDiffWindow : Window
                 path => Path.GetRelativePath(rootPath, path).Replace('\\', '/'),
                 path => path,
                 StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string BuildSummaryText(Dictionary<string, string> fields)
+    {
+        return string.Join(" | ",
+            fields.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(x => $"{x.Key}:{x.Value}"));
+    }
+
+    private static string GetCellValueByDisplayIndex(JsonDiffItem item, int displayIndex)
+    {
+        return displayIndex switch
+        {
+            0 => item.JsonFile,
+            1 => item.DiffType,
+            2 => item.Key,
+            3 => item.FieldName,
+            4 => item.SourceValue,
+            5 => item.TargetValue,
+            _ => string.Empty
+        };
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T typed)
+            {
+                return typed;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
+        }
+
+        return null;
     }
 }
 

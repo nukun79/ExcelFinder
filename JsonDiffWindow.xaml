@@ -92,8 +92,14 @@
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   CanUserResizeRows="False"
+                  PreviewMouseRightButtonDown="DiffDataGrid_PreviewMouseRightButtonDown"
                   HeadersVisibility="Column"
                   RowHeaderWidth="0">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="값복사" Click="CopyCellValueMenuItem_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="파일" Binding="{Binding JsonFile}" Width="220"/>
                 <DataGridTextColumn Header="구분" Binding="{Binding DiffType}" Width="90"/>

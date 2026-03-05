@@ -81,8 +81,14 @@
                   CanUserDeleteRows="False"
                   CanUserResizeRows="False"
                   IsReadOnly="False"
+                  PreviewMouseRightButtonDown="ItemsDataGrid_PreviewMouseRightButtonDown"
                   HeadersVisibility="Column"
                   RowHeaderWidth="0">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="값복사" Click="CopyItemCellValueMenuItem_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridCheckBoxColumn Header="선택" Binding="{Binding IsChecked, Mode=TwoWay}" Width="70"/>
                 <DataGridTextColumn Header="이름" Binding="{Binding Name}" Width="170" IsReadOnly="True"/>

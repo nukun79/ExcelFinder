@@ -5,6 +5,8 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 
@@ -21,6 +23,7 @@ public partial class JsonExtractWindow : Window
     private bool _hasExtracted;
     private bool _suppressPathSave;
     private bool _suppressCheckedSave;
+    private string _contextCellValue = string.Empty;
 
     public JsonExtractWindow(string excelFolder, string jsonFolder)
     {
@@ -164,6 +167,48 @@ public partial class JsonExtractWindow : Window
         SaveCheckedNames();
         StatusTextBlock.Text = setTo ? "전체 체크" : "전체 체크 해제";
         ItemsDataGrid.Items.Refresh();
+    }
+
+    private void ItemsDataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _contextCellValue = string.Empty;
+
+        DependencyObject? source = e.OriginalSource as DependencyObject;
+        if (source is null)
+        {
+            return;
+        }
+
+        DataGridCell? cell = FindVisualParent<DataGridCell>(source);
+        DataGridRow? row = FindVisualParent<DataGridRow>(source);
+        if (row?.Item is not JsonExtractNameItem item)
+        {
+            return;
+        }
+
+        row.IsSelected = true;
+        ItemsDataGrid.SelectedItem = row.Item;
+        int displayIndex = cell?.Column?.DisplayIndex ?? -1;
+        _contextCellValue = GetItemCellValueByDisplayIndex(item, displayIndex);
+    }
+
+    private void CopyItemCellValueMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        string value = _contextCellValue;
+        if (string.IsNullOrEmpty(value) && ItemsDataGrid.SelectedItem is JsonExtractNameItem selected)
+        {
+            value = selected.Name;
+        }
+
+        try
+        {
+            Clipboard.SetText(value ?? string.Empty);
+            StatusTextBlock.Text = "값을 클립보드에 복사했습니다.";
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = $"복사 실패: {ex.Message}";
+        }
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -486,6 +531,34 @@ public partial class JsonExtractWindow : Window
         }
 
         return allRows;
+    }
+
+    private static string GetItemCellValueByDisplayIndex(JsonExtractNameItem item, int displayIndex)
+    {
+        return displayIndex switch
+        {
+            0 => item.IsChecked ? "True" : "False",
+            1 => item.Name,
+            2 => item.GroupSummary,
+            3 => item.FileCount.ToString(),
+            4 => item.OutputJsonCount.ToString(),
+            _ => string.Empty
+        };
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T typed)
+            {
+                return typed;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
+        }
+
+        return null;
     }
 
     private static string NormalizeHeader(string rawHeader)

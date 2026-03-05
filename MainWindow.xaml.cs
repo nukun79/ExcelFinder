@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private double? _savedJsonListHeight;
     private double? _savedWindowWidth;
     private double? _savedWindowHeight;
+    private string _resultContextCellValue = string.Empty;
 
     public MainWindow()
     {
@@ -317,7 +318,8 @@ public partial class MainWindow : Window
         try
         {
             bool includeAllContent = IncludeAllContentCheckBox.IsChecked == true;
-            List<UidMatchResult> matches = await Task.Run(() => FindExcelFilesContainingUid(excelFolder, uid, includeAllContent));
+            bool exactMatch = ExactMatchCheckBox.IsChecked == true;
+            List<UidMatchResult> matches = await Task.Run(() => FindExcelFilesContainingUid(excelFolder, uid, includeAllContent, exactMatch));
 
             foreach (UidMatchResult match in matches)
             {
@@ -372,17 +374,41 @@ public partial class MainWindow : Window
 
     private void ResultDataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
+        _resultContextCellValue = string.Empty;
+
         DependencyObject? source = e.OriginalSource as DependencyObject;
         if (source is null)
         {
             return;
         }
 
+        DataGridCell? cell = FindVisualParent<DataGridCell>(source);
         DataGridRow? row = FindVisualParent<DataGridRow>(source);
-        if (row?.Item is UidMatchResult)
+        if (row?.Item is UidMatchResult item)
         {
             row.IsSelected = true;
             ResultDataGrid.SelectedItem = row.Item;
+            int displayIndex = cell?.Column?.DisplayIndex ?? -1;
+            _resultContextCellValue = GetResultCellValueByDisplayIndex(item, displayIndex);
+        }
+    }
+
+    private void CopyResultCellValueMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        string value = _resultContextCellValue;
+        if (string.IsNullOrWhiteSpace(value) && ResultDataGrid.SelectedItem is UidMatchResult selected)
+        {
+            value = selected.RowContent;
+        }
+
+        try
+        {
+            Clipboard.SetText(value ?? string.Empty);
+            StatusTextBlock.Text = "값을 클립보드에 복사했습니다.";
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = $"복사 실패: {ex.Message}";
         }
     }
 
@@ -713,7 +739,7 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private static List<UidMatchResult> FindExcelFilesContainingUid(string excelFolder, string uid, bool includeAllContent)
+    private static List<UidMatchResult> FindExcelFilesContainingUid(string excelFolder, string uid, bool includeAllContent, bool exactMatch)
     {
         var matches = new List<UidMatchResult>();
         var checkoutStatusCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
@@ -728,7 +754,7 @@ public partial class MainWindow : Window
 
         foreach (string file in excelFiles)
         {
-            List<UidMatchResult> fileMatches = FindUidRowsInExcel(file, uid, includeAllContent).ToList();
+            List<UidMatchResult> fileMatches = FindUidRowsInExcel(file, uid, includeAllContent, exactMatch).ToList();
             if (fileMatches.Count == 0)
             {
                 continue;
@@ -745,7 +771,7 @@ public partial class MainWindow : Window
         return matches;
     }
 
-    private static IEnumerable<UidMatchResult> FindUidRowsInExcel(string excelFilePath, string uid, bool includeAllContent)
+    private static IEnumerable<UidMatchResult> FindUidRowsInExcel(string excelFilePath, string uid, bool includeAllContent, bool exactMatch)
     {
         var matches = new List<UidMatchResult>();
         string uidTrimmed = uid.Trim();
@@ -794,7 +820,7 @@ public partial class MainWindow : Window
                             rowCellValuesByColumn[columnIndex.Value] = cellText.Trim();
                         }
 
-                        if (!containsUid && includeAllContent && IsCellMatch(cellText, uidTrimmed, includeAllContent))
+                        if (!containsUid && includeAllContent && IsCellMatch(cellText, uidTrimmed, includeAllContent, exactMatch))
                         {
                             containsUid = true;
                         }
@@ -810,7 +836,7 @@ public partial class MainWindow : Window
                         }
 
                         if (rowCellValuesByColumn.TryGetValue(uidColumnIndex.Value, out string? uidCellText)
-                            && IsCellMatch(uidCellText, uidTrimmed, includeAllContent))
+                            && IsCellMatch(uidCellText, uidTrimmed, includeAllContent, exactMatch))
                         {
                             containsUid = true;
                         }
@@ -884,8 +910,13 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private static bool IsCellMatch(string cellText, string uid, bool includeAllContent)
+    private static bool IsCellMatch(string cellText, string uid, bool includeAllContent, bool exactMatch)
     {
+        if (exactMatch)
+        {
+            return string.Equals(cellText.Trim(), uid, StringComparison.OrdinalIgnoreCase);
+        }
+
         if (includeAllContent)
         {
             return cellText.Contains(uid, StringComparison.OrdinalIgnoreCase);
@@ -1022,6 +1053,19 @@ public partial class MainWindow : Window
         }
 
         return columnIndex;
+    }
+
+    private static string GetResultCellValueByDisplayIndex(UidMatchResult item, int displayIndex)
+    {
+        return displayIndex switch
+        {
+            0 => item.IsCheckedOut ? "ON" : "OFF",
+            1 => item.FileName,
+            2 => item.SheetName,
+            3 => item.RowNumber.ToString(),
+            4 => item.RowContent,
+            _ => string.Empty
+        };
     }
 }
 

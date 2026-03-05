@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ClosedXML.Excel;
@@ -26,6 +27,7 @@ public partial class ExcelEditorWindow : Window
     private readonly Dictionary<string, string> _originalSnapshot = new(StringComparer.Ordinal);
     private readonly HashSet<int> _highlightTableColumnIndexes = [];
     private int _targetTableRowIndex = -1;
+    private string _contextCellValue = string.Empty;
 
     public ExcelEditorWindow(string filePath, string sheetName, int targetRowNumber, IEnumerable<string>? highlightCellAddresses = null)
     {
@@ -368,6 +370,55 @@ public partial class ExcelEditorWindow : Window
         }
     }
 
+    private void SheetDataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _contextCellValue = string.Empty;
+
+        DependencyObject? source = e.OriginalSource as DependencyObject;
+        if (source is null)
+        {
+            return;
+        }
+
+        DataGridCell? cell = FindVisualParent<DataGridCell>(source);
+        DataGridRow? row = FindVisualParent<DataGridRow>(source);
+        if (row is null)
+        {
+            return;
+        }
+
+        row.IsSelected = true;
+        SheetDataGrid.SelectedItem = row.Item;
+
+        if (row.Item is DataRowView rowView && cell?.Column is not null)
+        {
+            int colIndex = cell.Column.DisplayIndex;
+            if (colIndex >= 0 && colIndex < rowView.Row.ItemArray.Length)
+            {
+                _contextCellValue = rowView.Row[colIndex]?.ToString() ?? string.Empty;
+            }
+        }
+    }
+
+    private void CopyEditorCellValueMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        string value = _contextCellValue;
+        if (string.IsNullOrEmpty(value) && SheetDataGrid.SelectedItem is DataRowView rowView)
+        {
+            value = string.Join(" | ", rowView.Row.ItemArray.Select(x => x?.ToString() ?? string.Empty));
+        }
+
+        try
+        {
+            Clipboard.SetText(value ?? string.Empty);
+            EditorStatusTextBlock.Text = "값을 클립보드에 복사했습니다.";
+        }
+        catch (Exception ex)
+        {
+            EditorStatusTextBlock.Text = $"복사 실패: {ex.Message}";
+        }
+    }
+
     private void CaptureOriginalSnapshot()
     {
         _originalSnapshot.Clear();
@@ -500,6 +551,21 @@ public partial class ExcelEditorWindow : Window
             {
                 return nested;
             }
+        }
+
+        return null;
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T typed)
+            {
+                return typed;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
         }
 
         return null;

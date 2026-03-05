@@ -34,7 +34,14 @@
                   CanUserDeleteRows="False"
                   SelectionUnit="FullRow"
                   SelectionMode="Single"
-                  LoadingRow="SheetDataGrid_LoadingRow"/>
+                  PreviewMouseRightButtonDown="SheetDataGrid_PreviewMouseRightButtonDown"
+                  LoadingRow="SheetDataGrid_LoadingRow">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="값복사" Click="CopyEditorCellValueMenuItem_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+        </DataGrid>
 
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>

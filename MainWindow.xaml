@@ -45,10 +45,14 @@
         <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="검색어"/>
         <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,10,8">
             <TextBox x:Name="UidTextBox" Height="28" VerticalContentAlignment="Center"/>
-            <CheckBox x:Name="IncludeAllContentCheckBox"
-                      Margin="0,6,0,0"
-                      Content="모든 내용 검색(off시 UID칼럼만 검색)"
-                      IsChecked="True"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <CheckBox x:Name="IncludeAllContentCheckBox"
+                          Content="모든 내용 검색(off시 UID칼럼만 검색)"
+                          IsChecked="True"/>
+                <CheckBox x:Name="ExactMatchCheckBox"
+                          Margin="14,0,0,0"
+                          Content="값 정확히 일치"/>
+            </StackPanel>
         </StackPanel>
         <Button x:Name="SearchButton" Grid.Row="4" Grid.Column="2" Width="90" Height="28" Margin="0,0,0,8" Click="SearchButton_Click" Content="검색"/>
 
@@ -111,6 +115,8 @@
                           MouseDoubleClick="ResultDataGrid_MouseDoubleClick">
                     <DataGrid.ContextMenu>
                     <ContextMenu Opened="ResultContextMenu_Opened">
+                        <MenuItem Header="값복사" Click="CopyResultCellValueMenuItem_Click"/>
+                        <Separator/>
                         <MenuItem Header="에디터 열기" Click="OpenEditorMenuItem_Click"/>
                         <MenuItem Header="히스토리" Click="OpenHistoryMenuItem_Click"/>
                         <MenuItem Header="파일 위치 열기" Click="OpenContainingFolderMenuItem_Click"/>
